@@ -9,23 +9,25 @@ interface VmBackend {
 
 class VineOsBackend : VmBackend {
     override val type = BackendType.VINEOS
-    override fun isAvailable() = true
-    override fun start(config: VmConfig) = Result.success(Unit)
-    override fun stop() = Result.success(Unit)
+    override fun isAvailable(): Boolean = true
+    override fun start(config: VmConfig): Result<Unit> = Result.success(Unit)
+    override fun stop(): Result<Unit> = Result.success(Unit)
 }
 
 class QemuBackend : VmBackend {
     override val type = BackendType.QEMU
-    override fun isAvailable() = false
-    override fun start(config: VmConfig) = Result.failure(UnsupportedOperationException("QEMU backend ainda não integrado"))
-    override fun stop() = Result.success(Unit)
+    override fun isAvailable(): Boolean = false
+    override fun start(config: VmConfig): Result<Unit> =
+        Result.failure(UnsupportedOperationException("QEMU backend ainda não integrado"))
+    override fun stop(): Result<Unit> = Result.success(Unit)
 }
 
 class AvfBackend : VmBackend {
     override val type = BackendType.AVF
-    override fun isAvailable() = android.os.Build.VERSION.SDK_INT >= 31
-    override fun start(config: VmConfig) = Result.failure(UnsupportedOperationException("AVF backend será integrado na fase 2"))
-    override fun stop() = Result.success(Unit)
+    override fun isAvailable(): Boolean = android.os.Build.VERSION.SDK_INT >= 31
+    override fun start(config: VmConfig): Result<Unit> =
+        Result.failure(UnsupportedOperationException("AVF backend será integrado na fase 2"))
+    override fun stop(): Result<Unit> = Result.success(Unit)
 }
 
 class BackendSelector {
