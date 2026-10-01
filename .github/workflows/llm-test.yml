@@ -23,7 +23,6 @@ jobs:
 
       - name: Start Ollama
         run: |
-          # Allow browser clients to call the temporary public API.
           OLLAMA_ORIGINS="*" ollama serve > /tmp/ollama.log 2>&1 &
 
           for i in {1..60}; do
@@ -74,26 +73,18 @@ jobs:
           sudo nginx -t
           sudo systemctl restart nginx
 
-          echo "CORS proxy online at http://127.0.0.1:11435"
-
       - name: Install cloudflared
         run: |
-          curl -L --fail --silent --show-error \
-            https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 \
-            -o cloudflared
+          curl -L --fail --silent --show-error             https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64             -o cloudflared
           chmod +x cloudflared
           sudo mv cloudflared /usr/local/bin/cloudflared
 
       - name: Pull model
-        run: ollama pull llama3.2:1b
+        run: ollama pull gemma4:e2b
 
       - name: Start Cloudflare Tunnel
         run: |
-          # Ollama expects the origin Host to be localhost:11434.
-          cloudflared tunnel --no-autoupdate \
-            --url http://localhost:11435 \
-            --http-host-header="localhost:11435" \
-            > /tmp/cloudflared.log 2>&1 &
+          cloudflared tunnel --no-autoupdate             --url http://localhost:11435             --http-host-header="localhost:11435"             > /tmp/cloudflared.log 2>&1 &
 
           for i in {1..60}; do
             URL=$(grep -oE 'https://[-a-zA-Z0-9]+\.trycloudflare\.com' /tmp/cloudflared.log | head -n1 || true)
@@ -122,10 +113,7 @@ jobs:
             echo "Attempt $i/60"
 
             if getent hosts "$(echo "$OLLAMA_URL" | sed 's#https://##')" >/dev/null 2>&1; then
-              echo "DNS resolved."
-
-              HTTP_CODE=$(curl -sS -o /tmp/api-tags.json -w "%{http_code}" \
-                --max-time 10 "$OLLAMA_URL/api/tags" || true)
+              HTTP_CODE=$(curl -sS -o /tmp/api-tags.json -w "%{http_code}"                 --max-time 10 "$OLLAMA_URL/api/tags" || true)
 
               echo "HTTP status: $HTTP_CODE"
 
@@ -137,28 +125,20 @@ jobs:
                 echo
                 exit 0
               fi
-
-              echo "DNS works, but API returned HTTP $HTTP_CODE."
-            else
-              echo "DNS not ready yet."
             fi
 
             sleep 1
           done
 
           echo "Tunnel/DNS/API did not become ready within 60 seconds."
-          echo "----- cloudflared.log -----"
           cat /tmp/cloudflared.log
-          echo "----- ollama.log -----"
           cat /tmp/ollama.log
           exit 1
 
       - name: Keep server alive
         run: |
           echo "LLM online at: $OLLAMA_URL"
-          echo "API example:"
-          echo "curl $OLLAMA_URL/api/generate -d '{\"model\":\"llama3.2:1b\",\"prompt\":\"Oi\"}'"
-          echo
+          echo "Model: gemma4:e2b"
           echo "The URL is temporary and disappears when this job ends."
           echo "Keeping Ollama + Cloudflare Tunnel alive for ~5h50..."
           sleep 330m
