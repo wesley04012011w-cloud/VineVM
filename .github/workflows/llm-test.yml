@@ -1,32 +1,80 @@
-name: LLM benchmark
+name: LLM tunnel lab
 
 on:
   workflow_dispatch:
 
 jobs:
-  benchmark:
+  llm:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 350
+
     steps:
       - uses: actions/checkout@v4
+
       - name: Show runner
         run: |
           echo "CPU: $(nproc)"
           free -h
           df -h /
           uname -a
+
       - name: Install Ollama
         run: curl -fsSL https://ollama.com/install.sh | sh
+
       - name: Start Ollama
         run: |
           ollama serve > /tmp/ollama.log 2>&1 &
-          for i in {1..30}; do curl -sf http://127.0.0.1:11434/api/tags >/dev/null && break; sleep 1; done
-      - name: Run LLM test
+          for i in {1..60}; do
+            if curl -sf http://127.0.0.1:11434/api/tags >/dev/null; then
+              echo "Ollama online"
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/ollama.log
+          exit 1
+
+      - name: Install cloudflared
         run: |
-          ollama pull llama3.2:1b
-          /usr/bin/time -v ollama run llama3.2:1b "Explique em português, de forma curta, como funciona uma máquina virtual." 2>&1 | tee benchmark.txt
-      - name: Upload result
-        uses: actions/upload-artifact@v4
-        with:
-          name: llm-benchmark
-          path: benchmark.txt
+          curl -L --fail --silent --show-error \
+            https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 \
+            -o cloudflared
+          chmod +x cloudflared
+          sudo mv cloudflared /usr/local/bin/cloudflared
+
+      - name: Pull model
+        run: ollama pull llama3.2:1b
+
+      - name: Start Cloudflare Tunnel
+        run: |
+          cloudflared tunnel --no-autoupdate --url http://127.0.0.1:11434 > /tmp/cloudflared.log 2>&1 &
+          for i in {1..60}; do
+            URL=$(grep -oE 'https://[-a-zA-Z0-9]+\.trycloudflare\.com' /tmp/cloudflared.log | head -n1 || true)
+            if [ -n "$URL" ]; then
+              echo "OLLAMA_URL=$URL" >> "$GITHUB_ENV"
+              echo "======================================"
+              echo "OLLAMA PUBLIC URL: $URL"
+              echo "======================================"
+              break
+            fi
+            sleep 1
+          done
+          if [ -z "${OLLAMA_URL:-}" ]; then
+            cat /tmp/cloudflared.log
+            exit 1
+          fi
+
+      - name: Smoke test through tunnel
+        run: |
+          echo "Testing $OLLAMA_URL/api/tags"
+          curl --fail --show-error --max-time 30 "$OLLAMA_URL/api/tags"
+          echo
+
+      - name: Keep server alive
+        run: |
+          echo "LLM online at: $OLLAMA_URL"
+          echo "API example:"
+          echo "curl $OLLAMA_URL/api/generate -d '{"model":"llama3.2:1b","prompt":"Oi"}'"
+          echo
+          echo "The URL is temporary and disappears when this job ends."
+          sleep 330m
