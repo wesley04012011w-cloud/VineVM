@@ -37,6 +37,45 @@ jobs:
           cat /tmp/ollama.log
           exit 1
 
+      - name: Install CORS proxy
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq nginx
+
+          sudo tee /etc/nginx/sites-available/ollama-proxy >/dev/null <<'NGINX'
+          server {
+              listen 11435;
+              server_name _;
+
+              location / {
+                  if ($request_method = OPTIONS) {
+                      add_header Access-Control-Allow-Origin "*" always;
+                      add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
+                      add_header Access-Control-Allow-Headers "*" always;
+                      add_header Access-Control-Max-Age "86400" always;
+                      return 204;
+                  }
+
+                  proxy_pass http://127.0.0.1:11434;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host localhost:11434;
+                  proxy_set_header Origin "";
+                  proxy_buffering off;
+
+                  add_header Access-Control-Allow-Origin "*" always;
+                  add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
+                  add_header Access-Control-Allow-Headers "*" always;
+              }
+          }
+          NGINX
+
+          sudo rm -f /etc/nginx/sites-enabled/default
+          sudo ln -sf /etc/nginx/sites-available/ollama-proxy /etc/nginx/sites-enabled/ollama-proxy
+          sudo nginx -t
+          sudo systemctl restart nginx
+
+          echo "CORS proxy online at http://127.0.0.1:11435"
+
       - name: Install cloudflared
         run: |
           curl -L --fail --silent --show-error \
@@ -52,8 +91,8 @@ jobs:
         run: |
           # Ollama expects the origin Host to be localhost:11434.
           cloudflared tunnel --no-autoupdate \
-            --url http://localhost:11434 \
-            --http-host-header="localhost:11434" \
+            --url http://localhost:11435 \
+            --http-host-header="localhost:11435" \
             > /tmp/cloudflared.log 2>&1 &
 
           for i in {1..60}; do
