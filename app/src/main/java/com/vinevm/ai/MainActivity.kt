@@ -14,7 +14,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -33,7 +33,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
-private data class ChatMessage(val role: String, val content: String)
+private data class ChatMessage(
+    val role: String,
+    val content: String,
+    val thinking: String = ""
+)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,12 +56,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun VineTheme(content: @Composable () -> Unit) {
-    val bg = Color(0xFF0B0D12)
     MaterialTheme(
         colorScheme = darkColorScheme(
             primary = Color(0xFF9B8CFF),
             secondary = Color(0xFF71D7C2),
-            background = bg,
+            background = Color(0xFF0B0D12),
             surface = Color(0xFF171A23)
         ),
         content = content
@@ -67,9 +70,11 @@ private fun VineTheme(content: @Composable () -> Unit) {
 @Composable
 private fun VineChat(initialUrl: String, saveUrl: (String) -> Unit) {
     var workerUrl by remember { mutableStateOf(initialUrl) }
+    var model by remember { mutableStateOf("llama3.2") }
+    var thinkingEnabled by remember { mutableStateOf(true) }
     var draft by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
-    var status by remember { mutableStateOf("Adicione a URL do seu Worker para começar.") }
+    var status by remember { mutableStateOf("Cole a URL pública do Ollama (Cloudflare Tunnel).") }
     val messages = remember { mutableStateListOf<ChatMessage>() }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
@@ -79,18 +84,24 @@ private fun VineChat(initialUrl: String, saveUrl: (String) -> Unit) {
         val endpoint = workerUrl.trim()
         if (text.isEmpty() || busy) return
         if (!endpoint.startsWith("https://")) {
-            status = "A URL precisa começar com https://"
+            status = "Erro: a URL precisa começar com https://"
+            return
+        }
+        if (model.isBlank()) {
+            status = "Erro: informe o nome do modelo Ollama."
             return
         }
         messages.add(ChatMessage("user", text))
         draft = ""
         busy = true
-        status = "Conectando ao Worker…"
+        status = "Conectando ao Ollama…"
         scope.launch {
             try {
-                val answer = withContext(Dispatchers.IO) { callWorker(endpoint, messages.toList()) }
-                messages.add(ChatMessage("assistant", answer))
-                status = "Conectado"
+                val result = withContext(Dispatchers.IO) {
+                    callOllama(endpoint, model.trim(), messages.toList(), thinkingEnabled)
+                }
+                messages.add(ChatMessage("assistant", result.second, result.first))
+                status = "Conectado • Ollama"
             } catch (e: Exception) {
                 status = "Erro: ${e.message ?: "não foi possível conectar"}"
             } finally {
@@ -120,28 +131,50 @@ private fun VineChat(initialUrl: String, saveUrl: (String) -> Unit) {
                 Text("VineVM", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 Text("AI • Android", fontSize = 12.sp, color = Color(0xFF9298AA))
             }
-            Text("v0.1.0", color = Color(0xFF9298AA), fontSize = 11.sp)
+            Text("v0.2.0", color = Color(0xFF9298AA), fontSize = 11.sp)
         }
 
-        Text("URL DO WORKER CLOUDFLARE", color = Color(0xFFAAAFC0), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        Text("URL PÚBLICA DO OLLAMA", color = Color(0xFFAAAFC0), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        OutlinedTextField(
+            value = workerUrl,
+            onValueChange = { workerUrl = it; saveUrl(it) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("https://seu-tunel.trycloudflare.com") },
+            singleLine = true,
+            shape = RoundedCornerShape(14.dp),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                focusedBorderColor = Color(0xFF9B8CFF), unfocusedBorderColor = Color(0xFF343847)
+            )
+        )
+        Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
-                value = workerUrl,
-                onValueChange = { workerUrl = it; saveUrl(it) },
+                value = model,
+                onValueChange = { model = it },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("https://seu-worker.workers.dev") },
+                label = { Text("Modelo Ollama") },
+                placeholder = { Text("ex.: llama3.2") },
                 singleLine = true,
-                shape = RoundedCornerShape(14.dp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedBorderColor = Color(0xFF9B8CFF),
-                    unfocusedBorderColor = Color(0xFF343847)
+                    focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                    focusedBorderColor = Color(0xFF9B8CFF), unfocusedBorderColor = Color(0xFF343847)
                 )
             )
+            Spacer(Modifier.width(10.dp))
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Thinking", color = Color(0xFFAAAFC0), fontSize = 11.sp)
+                Switch(checked = thinkingEnabled, onCheckedChange = { thinkingEnabled = it })
+            }
         }
-        Text(status, color = if (status.startsWith("Erro")) Color(0xFFFF8585) else Color(0xFF9298AA), fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp, bottom = 12.dp))
+        Text(
+            status,
+            color = if (status.startsWith("Erro")) Color(0xFFFF8585) else Color(0xFF9298AA),
+            fontSize = 11.sp,
+            modifier = Modifier.padding(top = 6.dp, bottom = 12.dp)
+        )
 
         HorizontalDivider(color = Color(0xFF252936))
         if (messages.isEmpty()) {
@@ -162,6 +195,17 @@ private fun VineChat(initialUrl: String, saveUrl: (String) -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(messages) { message ->
+                    if (message.role == "assistant" && message.thinking.isNotBlank()) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(end = 12.dp)
+                                .background(Color(0xFF171A23), RoundedCornerShape(14.dp))
+                                .padding(12.dp)
+                        ) {
+                            Text("🧠 Thinking", color = Color(0xFFB7AFFF), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(5.dp))
+                            Text(message.thinking, color = Color(0xFFB7B9C8), fontSize = 12.sp, lineHeight = 18.sp)
+                        }
+                    }
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = if (message.role == "user") Arrangement.End else Arrangement.Start
@@ -200,10 +244,8 @@ private fun VineChat(initialUrl: String, saveUrl: (String) -> Unit) {
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = { sendMessage() }),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedBorderColor = Color(0xFF9B8CFF),
-                    unfocusedBorderColor = Color(0xFF343847)
+                    focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                    focusedBorderColor = Color(0xFF9B8CFF), unfocusedBorderColor = Color(0xFF343847)
                 )
             )
             Spacer(Modifier.width(8.dp))
@@ -218,31 +260,52 @@ private fun VineChat(initialUrl: String, saveUrl: (String) -> Unit) {
     }
 }
 
-private fun callWorker(url: String, messages: List<ChatMessage>): String {
+private fun callOllama(
+    baseUrl: String,
+    model: String,
+    messages: List<ChatMessage>,
+    thinkingEnabled: Boolean
+): Pair<String, String> {
+    val base = baseUrl.toHttpUrlOrNull()
+        ?: throw IllegalArgumentException("URL pública inválida.")
+    val endpoint = if (base.encodedPath.endsWith("/api/chat") || base.encodedPath.endsWith("/v1/chat/completions")) {
+        base
+    } else {
+        base.newBuilder().addPathSegments("api/chat").build()
+    }
+
     val client = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(90, TimeUnit.SECONDS)
+        .readTimeout(180, TimeUnit.SECONDS)
         .build()
 
     val history = JSONArray()
     messages.forEach { message ->
         history.put(JSONObject().put("role", message.role).put("content", message.content))
     }
-    val payload = JSONObject().put("messages", history)
+    val payload = JSONObject()
+        .put("model", model)
+        .put("messages", history)
+        .put("stream", false)
+        .put("think", thinkingEnabled)
     val body = payload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-    val request = Request.Builder().url(url).post(body).build()
+    val request = Request.Builder().url(endpoint).post(body).build()
 
     client.newCall(request).execute().use { response ->
         val raw = response.body?.string().orEmpty()
-        if (!response.isSuccessful) throw IllegalStateException("HTTP ${response.code}: ${raw.take(180)}")
+        if (!response.isSuccessful) {
+            val hint = if (response.code == 405) "O endereço respondeu 405. Confirme que o túnel aponta para o servidor Ollama (porta 11434), não para o painel/site." else raw.take(220)
+            throw IllegalStateException("HTTP ${response.code}: $hint")
+        }
         val json = JSONObject(raw)
-        return when {
-            json.has("response") -> json.optString("response")
-            json.has("output") -> json.optString("output")
-            json.optJSONObject("result")?.has("response") == true -> json.getJSONObject("result").optString("response")
-            json.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("message")?.has("content") == true ->
-                json.getJSONArray("choices").getJSONObject(0).getJSONObject("message").optString("content")
-            else -> raw
-        }.ifBlank { "O Worker respondeu, mas não enviou texto." }
+        val message = json.optJSONObject("message")
+        val thinking = message?.optString("thinking").orEmpty()
+        val answer = message?.optString("content").orEmpty().ifBlank {
+            json.optString("response").ifBlank { json.optString("output") }
+        }
+        if (answer.isBlank() && thinking.isBlank()) {
+            throw IllegalStateException("Ollama respondeu, mas não encontrei message.content.")
+        }
+        return Pair(if (thinkingEnabled) thinking else "", answer.ifBlank { "(Sem resposta textual; veja o thinking.)" })
     }
 }
