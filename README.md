@@ -1,27 +1,33 @@
 # VineVM AI — Android
 
-Primeira versão nativa Android do VineVM, feita com Kotlin e Jetpack Compose.
+Cliente Android nativo para conversar com um Ollama exposto por uma URL HTTPS pública (por exemplo, Cloudflare Quick Tunnel).
 
-## O que já tem
-- Interface de chat escura e adaptada para celular.
-- Campo para URL HTTPS do seu Cloudflare Worker.
-- URL salva localmente no aparelho.
-- Envio de histórico de mensagens em JSON.
-- Exibição de respostas e erros HTTP.
+## Recursos
+- Chat com histórico durante a sessão.
+- Campo para URL pública do Ollama; a URL fica salva no aparelho.
+- Campo para escolher o nome do modelo instalado no Ollama.
+- Controle para ativar/desativar Thinking.
+- Caixa separada para exibir o conteúdo de `message.thinking`, quando o modelo e a versão do Ollama disponibilizarem esse campo.
 
-## Contrato esperado do Worker
+## Conectar ao Cloudflare Tunnel
 
-O app envia um `POST` diretamente para a URL informada, com `Content-Type: application/json`:
+O endereço público precisa encaminhar para a API do Ollama, normalmente na porta `11434`. Exemplo no computador onde o Ollama está rodando:
 
-```json
-{
-  "messages": [
-    { "role": "user", "content": "Oi!" }
-  ]
-}
+```bash
+cloudflared tunnel --url http://localhost:11434
 ```
 
-O Worker pode responder com JSON contendo `response`, `output`, `result.response` ou `choices[0].message.content`. A URL deve ser HTTPS e o endpoint precisa aceitar esse formato. Não coloque segredos no app ou no repositório.
+Cole no app somente a URL HTTPS gerada, por exemplo:
+
+```
+https://seu-subdominio.trycloudflare.com/
+```
+
+O VineVM acrescenta automaticamente `/api/chat`. Se você colar uma URL que já termine em `/api/chat`, ela será usada como está. Isso evita enviar o POST para a raiz do domínio — que pode responder HTTP 405.
+
+No app, informe também o nome exato do modelo que está instalado no Ollama (por exemplo, `llama3.2`). O app envia `POST /api/chat` com `model`, `messages`, `stream: false` e `think` conforme o botão. A resposta esperada é o JSON padrão do Ollama, com `message.content` e, quando disponível, `message.thinking`.
+
+**Importante:** o túnel deve apontar para o serviço Ollama na porta 11434, e não para uma página web, painel ou outro serviço. Mantenha o túnel protegido se não quiser expor seu Ollama publicamente; qualquer pessoa com acesso ao endereço pode tentar usar a API.
 
 ## Compilar
 Abra a pasta do projeto no Android Studio (JDK 17, Android SDK 35) e execute a configuração Gradle. O pacote é `com.vinevm.ai`.
