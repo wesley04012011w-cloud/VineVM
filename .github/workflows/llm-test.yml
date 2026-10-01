@@ -51,7 +51,7 @@ jobs:
           for i in {1..60}; do
             URL=$(grep -oE 'https://[-a-zA-Z0-9]+\.trycloudflare\.com' /tmp/cloudflared.log | head -n1 || true)
             if [ -n "$URL" ]; then
-                echo "OLLAMA_URL=$URL" >> "$GITHUB_ENV"
+              echo "OLLAMA_URL=$URL" >> "$GITHUB_ENV"
               echo "======================================"
               echo "OLLAMA PUBLIC URL: $URL"
               echo "======================================"
@@ -64,11 +64,39 @@ jobs:
             exit 1
           fi
 
-      - name: Smoke test through tunnel
+      - name: Wait for DNS and smoke test
         run: |
-          echo "Testing $OLLAMA_URL/api/tags"
-          curl --fail --show-error --max-time 30 "$OLLAMA_URL/api/tags"
-          echo
+          echo "Waiting for DNS and testing $OLLAMA_URL/api/tags"
+
+          for i in {1..60}; do
+            echo "Attempt $i/60"
+
+            if getent hosts "$(echo "$OLLAMA_URL" | sed 's#https://##')" >/dev/null 2>&1; then
+              echo "DNS resolved."
+
+              if curl --fail --show-error --silent --max-time 10 "$OLLAMA_URL/api/tags" >/tmp/api-tags.json; then
+                echo "======================================"
+                echo "OLLAMA API ONLINE THROUGH CLOUDFLARE"
+                echo "======================================"
+                cat /tmp/api-tags.json
+                echo
+                exit 0
+              fi
+
+              echo "DNS works, but API is not ready yet."
+            else
+              echo "DNS not ready yet."
+            fi
+
+            sleep 1
+          done
+
+          echo "Tunnel/DNS/API did not become ready within 60 seconds."
+          echo "----- cloudflared.log -----"
+          cat /tmp/cloudflared.log
+          echo "----- ollama.log -----"
+          cat /tmp/ollama.log
+          exit 1
 
       - name: Keep server alive
         run: |
@@ -77,4 +105,5 @@ jobs:
           echo "curl $OLLAMA_URL/api/generate -d '{"model":"llama3.2:1b","prompt":"Oi"}'"
           echo
           echo "The URL is temporary and disappears when this job ends."
+          echo "Keeping Ollama + Cloudflare Tunnel alive for ~5h50..."
           sleep 330m
