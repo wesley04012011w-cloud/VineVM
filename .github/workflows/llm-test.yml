@@ -23,7 +23,9 @@ jobs:
 
       - name: Start Ollama
         run: |
-          ollama serve > /tmp/ollama.log 2>&1 &
+          # Allow browser clients to call the temporary public API.
+          OLLAMA_ORIGINS="*" ollama serve > /tmp/ollama.log 2>&1 &
+
           for i in {1..60}; do
             if curl -sf http://127.0.0.1:11434/api/tags >/dev/null; then
               echo "Ollama online"
@@ -31,6 +33,7 @@ jobs:
             fi
             sleep 1
           done
+
           cat /tmp/ollama.log
           exit 1
 
@@ -47,13 +50,15 @@ jobs:
 
       - name: Start Cloudflare Tunnel
         run: |
+          # Ollama expects the origin Host to be localhost:11434.
           cloudflared tunnel --no-autoupdate \
-            --url http://127.0.0.1:11434 \
-            --http-host-header localhost:11434 \
+            --url http://localhost:11434 \
+            --http-host-header="localhost:11434" \
             > /tmp/cloudflared.log 2>&1 &
 
           for i in {1..60}; do
             URL=$(grep -oE 'https://[-a-zA-Z0-9]+\.trycloudflare\.com' /tmp/cloudflared.log | head -n1 || true)
+
             if [ -n "$URL" ]; then
               echo "OLLAMA_URL=$URL" >> "$GITHUB_ENV"
               echo "======================================"
@@ -61,6 +66,7 @@ jobs:
               echo "======================================"
               break
             fi
+
             sleep 1
           done
 
@@ -79,7 +85,12 @@ jobs:
             if getent hosts "$(echo "$OLLAMA_URL" | sed 's#https://##')" >/dev/null 2>&1; then
               echo "DNS resolved."
 
-              if curl --fail --show-error --silent --max-time 10 "$OLLAMA_URL/api/tags" >/tmp/api-tags.json; then
+              HTTP_CODE=$(curl -sS -o /tmp/api-tags.json -w "%{http_code}" \
+                --max-time 10 "$OLLAMA_URL/api/tags" || true)
+
+              echo "HTTP status: $HTTP_CODE"
+
+              if [ "$HTTP_CODE" = "200" ]; then
                 echo "======================================"
                 echo "OLLAMA API ONLINE THROUGH CLOUDFLARE"
                 echo "======================================"
@@ -88,7 +99,7 @@ jobs:
                 exit 0
               fi
 
-              echo "DNS works, but API is not ready yet."
+              echo "DNS works, but API returned HTTP $HTTP_CODE."
             else
               echo "DNS not ready yet."
             fi
