@@ -23,6 +23,7 @@ jobs:
 
       - name: Start Ollama
         run: |
+          export OLLAMA_ORIGINS="*"
           ollama serve > /tmp/ollama.log 2>&1 &
           for i in {1..60}; do
             if curl -sf http://127.0.0.1:11434/api/tags >/dev/null; then
@@ -102,7 +103,7 @@ jobs:
         run: |
           echo "LLM online at: $OLLAMA_URL"
           echo "API example:"
-          echo "curl $OLLAMA_URL/api/generate -d '{"model":"llama3.2:1b","prompt":"Oi"}'"
+          echo "curl $OLLAMA_URL/api/generate -d '{\"model\":\"llama3.2:1b\",\"prompt\":\"Oi\"}'"
           echo
           echo "The URL is temporary and disappears when this job ends."
           echo "Keeping Ollama + Cloudflare Tunnel alive for ~5h50..."
