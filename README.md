@@ -1,23 +1,29 @@
-# VineVM
+# VineVM AI — Android
 
-Ambiente de desenvolvimento do VineVM preparado para GitHub Codespaces.
+Primeira versão nativa Android do VineVM, feita com Kotlin e Jetpack Compose.
 
-## Abrir o ambiente
+## O que já tem
+- Interface de chat escura e adaptada para celular.
+- Campo para URL HTTPS do seu Cloudflare Worker.
+- URL salva localmente no aparelho.
+- Envio de histórico de mensagens em JSON.
+- Exibição de respostas e erros HTTP.
 
-1. Abra este repositório no GitHub.
-2. Toque em **Code → Codespaces → Create codespace on main**.
-3. O Codespace será criado com Node.js 22.
-4. A porta **5173** está configurada para encaminhamento automático do preview.
+## Contrato esperado do Worker
 
-## Executar o app
+O app envia um `POST` diretamente para a URL informada, com `Content-Type: application/json`:
 
-O código-fonte do app ainda precisa ser adicionado à raiz deste repositório. Quando houver um projeto Vite, execute:
-
-```bash
-npm install
-npm run dev -- --host 0.0.0.0
+```json
+{
+  "messages": [
+    { "role": "user", "content": "Oi!" }
+  ]
+}
 ```
 
-Para um HTML estático, abra o arquivo no VS Code e use a extensão Live Server.
+O Worker pode responder com JSON contendo `response`, `output`, `result.response` ou `choices[0].message.content`. A URL deve ser HTTPS e o endpoint precisa aceitar esse formato. Não coloque segredos no app ou no repositório.
 
-> Não coloque tokens, senhas ou URLs privadas no repositório.
+## Compilar
+Abra a pasta do projeto no Android Studio (JDK 17, Android SDK 35) e execute a configuração Gradle. O pacote é `com.vinevm.ai`.
+
+Também há uma GitHub Action em **Actions → Android Debug APK** que compila o APK de debug e publica o arquivo como artefato para baixar.
