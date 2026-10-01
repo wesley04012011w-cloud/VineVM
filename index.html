@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>VineVM AI</title>
+<script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/styles/github-dark.min.css">
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/lib/highlight.min.js"></script>
+<style>
+:root{--bg:#0b0d10;--panel:#11151a;--panel2:#171c22;--line:#272d35;--text:#edf1f5;--muted:#8f9aa7;--accent:#7c9cff;--user:#25344f;--danger:#ff6b6b;--code:#0b0e12}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+button,input,textarea{font:inherit}button{color:inherit;background:none;border:0;cursor:pointer}
+.app{height:100%;display:flex;flex-direction:column}.top{height:58px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 14px;flex:0 0 auto;background:rgba(11,13,16,.94);backdrop-filter:blur(12px)}
+.brand{font-weight:800}.brand small{display:block;color:var(--muted);font-weight:500;font-size:10px}.top-actions{display:flex;gap:6px}.icon{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-size:19px}.icon:hover{background:var(--panel2)}
+.modelBtn{max-width:48vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:9px 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.chat{flex:1;overflow:auto;padding:28px max(16px,calc((100vw - 900px)/2));scroll-behavior:smooth}
+.empty{height:100%;display:grid;place-items:center;text-align:center;color:var(--muted)}.empty h1{color:var(--text);margin:0 0 8px;font-size:30px}
+.msg{display:flex;margin:0 0 24px;gap:10px}.msg.user{justify-content:flex-end}.bubble{max-width:88%;line-height:1.6;font-size:15px}.user .bubble{background:var(--user);padding:12px 15px;border-radius:18px 18px 5px 18px}.assistant .bubble{width:100%}
+.thinking{overflow-anchor:none !important;margin:0 0 12px;border:1px solid var(--line);background:var(--panel);border-radius:12px;overflow:hidden}.thinking summary{padding:9px 12px;cursor:pointer;color:#aeb8c5;font-size:12px}.thinkBody{padding:10px 13px;color:#9da7b3;font-size:13px;white-space:pre-wrap;border-top:1px solid var(--line);max-height:300px;overflow:auto}
+.md h1,.md h2,.md h3,.md h4{line-height:1.25;margin:20px 0 10px}.md h1{font-size:25px}.md h2{font-size:21px}.md h3{font-size:18px}.md p{margin:9px 0}.md a{color:#91adff}.md blockquote{border-left:3px solid var(--accent);margin:12px 0;padding:5px 14px;color:#b5bfca;background:#11151a}.md ul,.md ol{padding-left:25px}.md hr{border:0;border-top:1px solid var(--line);margin:20px 0}.md code:not(pre code){background:#1b2027;padding:2px 6px;border-radius:6px;font-size:.9em}.codeWrap{margin:14px 0;border:1px solid #2a313a;border-radius:10px;overflow:hidden;background:var(--code)}.codeHead{height:34px;padding:0 9px 0 12px;display:flex;align-items:center;justify-content:space-between;background:#151a20;color:#aab4c0;font-size:11px}.copyCode{border:1px solid #303740;border-radius:7px;padding:4px 8px}.copyCode:hover{background:#252b33}.codeWrap pre{margin:0;padding:14px;overflow:auto;font-size:13px;line-height:1.55}.md table{border-collapse:collapse;width:100%;margin:14px 0;display:block;overflow:auto}.md th,.md td{border:1px solid var(--line);padding:8px 10px;text-align:left;white-space:nowrap}.md th{background:#181d23}.md img{max-width:100%;border-radius:10px}.md input[type=checkbox]{accent-color:var(--accent);margin-right:7px}
+.composer{padding:10px max(12px,calc((100vw - 900px)/2));border-top:1px solid var(--line);background:var(--bg)}.box{border:1px solid var(--line);background:var(--panel);border-radius:16px;padding:9px;display:flex;gap:8px;align-items:flex-end}.box textarea{flex:1;background:none;border:0;outline:0;color:var(--text);resize:none;max-height:180px;min-height:40px;padding:9px}.send{width:42px;height:42px;border-radius:12px;background:var(--text);color:#0b0d10;font-weight:800}.send.stop{background:var(--danger);color:white}.hint{text-align:center;color:#697481;font-size:10px;margin-top:6px}
+.drawer{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:20}.drawer.open{display:block}.sheet{position:absolute;right:0;top:0;height:100%;width:min(520px,94vw);background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column}.sheetHead{padding:16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}.sheetBody{padding:15px;overflow:auto}.field{margin-bottom:14px}.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}.field input{width:100%;padding:11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text);outline:0}.row{display:flex;gap:8px;flex-wrap:wrap}.pill{border:1px solid var(--line);border-radius:999px;padding:7px 11px;color:var(--muted);font-size:12px}.pill.on{background:#24365f;color:#dce5ff;border-color:#40598f}.modelList{display:grid;gap:10px}.card{border:1px solid var(--line);background:var(--bg);border-radius:13px;padding:13px}.cardTop{display:flex;justify-content:space-between;gap:10px}.card h3{margin:0;font-size:15px}.card p{margin:6px 0;color:var(--muted);font-size:12px}.tags{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}.tag{font-size:10px;padding:4px 7px;border-radius:999px;background:#1b2027;color:#aeb8c5}.card button{padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:12px}.card button.primary{background:var(--accent);color:#08101f;border:0}.search{width:100%;padding:11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text);outline:0;margin-bottom:10px}.status{font-size:11px;color:var(--muted);margin:8px 0}.progress{height:7px;background:#20252c;border-radius:99px;overflow:hidden;margin:9px 0}.progress>i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s}.mini{font-size:10px;color:var(--muted)}.modelActions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+@media(max-width:600px){.bubble{max-width:94%}.top{height:54px}.brand{font-size:14px}.modelBtn{max-width:42vw}.chat{padding:18px 12px}.composer{padding:8px}.md table{font-size:12px}}
+
+/* --- Stability fixes --- */
+.thinking{overflow-anchor:none !important;
+  height:280px !important; max-height:280px !important; min-height:0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  scroll-behavior: auto !important;
+  user-select: text;
+}
+.thinking > *:last-child{margin-bottom:0}
+.msg-content pre{
+  max-width:100%;
+  overflow-x:auto !important;
+  overflow-y:auto;
+  position:relative;
+  white-space:pre;
+  scrollbar-gutter:stable;
+}
+.msg-content pre code{
+  display:block;
+  min-width:max-content;
+  white-space:pre;
+}
+.msg-content code{
+  overflow-wrap:normal;
+}
+.model-card{
+  position:relative;
+  contain:layout paint;
+}
+.model-card .model-actions{
+  position:relative;
+  z-index:5;
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+.model-card .model-actions button{
+  position:relative;
+  z-index:6;
+  pointer-events:auto !important;
+  touch-action:manipulation;
+}
+.model-progress{
+  pointer-events:none;
+}
+.models-grid{
+  isolation:isolate;
+}
+
+
+.codeCopy{
+  position:absolute;
+  top:7px;
+  right:7px;
+  z-index:3;
+  border:0;
+  border-radius:7px;
+  padding:4px 8px;
+  font-size:11px;
+  cursor:pointer;
+  opacity:.8;
+}
+.codeCopy:hover{opacity:1}
+.msg-content pre{padding-top:34px !important}
+
+.thinking{
+  overflow-y:scroll !important;
+  overflow-x:hidden !important;
+  overscroll-behavior:contain !important;
+  overflow-anchor:none !important;
+  touch-action:pan-y !important;
+}
+.thinking:focus{outline:none}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="top">
+  <div class="brand">VineVM AI<small id="status">desconectado</small></div>
+  <button type="button" class="modelBtn" id="modelBtn">qwen3.5:2b ▾</button>
+  <div class="top-actions">
+    <button type="button" class="icon" id="newBtn" title="Novo chat">＋</button>
+    <button type="button" class="icon" id="settingsBtn" title="Configurações">⚙️</button>
+    <button type="button" class="icon" id="fsBtn" title="Tela cheia">⛶</button>
+  </div>
+</header>
+<main class="chat" id="chat"><div class="empty"><div><h1>VineVM AI</h1><div>Conecte ao Ollama e mande uma mensagem.</div></div></div></main>
+<footer class="composer"><div class="box"><textarea id="prompt" rows="1" placeholder="Mensagem..."></textarea><button type="button" class="send" id="sendBtn">↑</button></div><div class="hint">Enter envia · Shift+Enter quebra linha</div></footer>
+</div>
+<div class="drawer" id="drawer"><section class="sheet"><div class="sheetHead"><strong id="sheetTitle">Configurações</strong><button type="button" class="icon" id="closeDrawer">×</button></div><div class="sheetBody" id="sheetBody"></div></section></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const state={
+ url:localStorage.getItem("vine_url")||"",
+ model:localStorage.getItem("vine_model")||"qwen3.5:2b",
+ think:localStorage.getItem("vine_think")!=="false",
+ num_ctx:parseInt(localStorage.getItem("vine_num_ctx")||"32768",10),
+ num_predict:parseInt(localStorage.getItem("vine_num_predict")||"4096",10),
+ messages:[],busy:false,controller:null,installed:[],loaded:[]
+};
+const catalog=[
+["qwen3.5:0.8b","~1 GB","256K",["thinking","vision","tools"],"Qwen 3.5"],
+["qwen3.5:2b","~2.7 GB","256K",["thinking","vision","tools"],"Qwen 3.5"],
+["qwen3.5:4b","~3.4 GB","256K",["thinking","vision","tools"],"Qwen 3.5"],
+["qwen3.5:9b","~6.6 GB","256K",["thinking","vision","tools"],"Qwen 3.5"],
+["qwen3:8b","~5.2 GB","128K",["thinking","tools"],"Qwen 3"],
+["qwen2.5-coder:7b","~4.7 GB","32K",["coding","tools"],"Qwen2.5 Coder"],
+["llama3.2:3b","~2.0 GB","128K",["tools"],"Llama 3.2"],
+["gemma4:e2b","~4.6–7.5 GB","128K",["thinking","vision","tools","audio"],"Gemma 4"],
+["gemma4:e4b","~6.6–9.5 GB","128K",["thinking","vision","tools","audio"],"Gemma 4"],
+["gemma4:12b","~7.7–8 GB","256K",["thinking","vision","tools","audio"],"Gemma 4"],
+["deepseek-r1:7b","~4.7 GB","128K",["thinking","tools"],"DeepSeek R1"],
+["mistral:7b","~4.1 GB","32K",["tools"],"Mistral"]
+];
+function api(p){return state.url.replace(/\/+$/,"")+p}
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function md(s){
+ marked.setOptions({breaks:true,gfm:true});
+ const box=document.createElement("div");box.innerHTML=DOMPurify.sanitize(marked.parse(s||""));
+ box.querySelectorAll("pre").forEach(pre=>{const code=pre.querySelector("code");if(!code)return;const lang=(code.className.match(/language-([\w+-]+)/)||[])[1]||"text";try{hljs.highlightElement(code)}catch{};const wrap=document.createElement("div");wrap.className="codeWrap";const head=document.createElement("div");head.className="codeHead";head.innerHTML=`<span>${esc(lang)}</span><button type="button" class="copyCode">📋 Copiar</button>`;head.querySelector("button").onclick=()=>navigator.clipboard.writeText(code.innerText);wrap.append(head,pre);pre.replaceWith(wrap)});
+ return box.innerHTML;
+}
+function save(){localStorage.setItem("vine_url",state.url);localStorage.setItem("vine_model",state.model);localStorage.setItem("vine_think",state.think)}
+function setStatus(s){$("status").textContent=s}
+function scroll(){requestAnimationFrame(()=>$("chat").scrollTop=$("chat").scrollHeight)}
+function render(){
+ const chat=$("chat");chat.innerHTML="";
+ if(!state.messages.length){
+   chat.innerHTML='<div class="empty"><div><h1>VineVM AI</h1><div>Pronto para conversar.</div></div></div>';
+   return;
+ }
+ state.messages.forEach((m,i)=>appendMessage(m,i));
+ scroll();
+}
+function renderMarkdown(text){
+  try{
+    const src = String(text ?? "");
+    if(!window.marked) return escapeHtml(src).replace(/\n/g,"<br>");
+    marked.setOptions({
+      gfm:true,
+      breaks:true,
+      headerIds:false,
+      mangle:false
+    });
+    let out = marked.parse(src);
+    if(window.DOMPurify) out = DOMPurify.sanitize(out,{
+      USE_PROFILES:{html:true},
+      ADD_ATTR:["target","rel"]
+    });
+    return out;
+  }catch(e){
+    console.warn("Markdown render fallback:", e);
+    return escapeHtml(String(text ?? "")).replace(/\n/g,"<br>");
+  }
+}
+
+function addCodeCopyButtons(root){
+  if(!root) return;
+  root.querySelectorAll("pre").forEach(pre=>{
+    if(pre.dataset.copyReady==="1") return;
+    pre.dataset.copyReady="1";
+    const btn=document.createElement("button");
+    btn.type="button";
+    btn.className="codeCopy";
+    btn.textContent="Copiar";
+    btn.onclick=async()=>{
+      const code=pre.querySelector("code")?.innerText||"";
+      try{
+        await navigator.clipboard.writeText(code);
+        btn.textContent="Copiado ✓";
+        setTimeout(()=>btn.textContent="Copiar",1200);
+      }catch{
+        btn.textContent="Falhou";
+        setTimeout(()=>btn.textContent="Copiar",1200);
+      }
+    };
+    pre.appendChild(btn);
+  });
+}
+function highlightCode(root){
+  try{
+    if(!window.hljs || !root) return;
+    root.querySelectorAll("pre code").forEach(el=>{
+      try{
+        if(el.dataset.hlDone==="1") return;
+        hljs.highlightElement(el);
+        el.dataset.hlDone="1";
+      }catch(e){}
+    });
+  }catch(e){}
+}
+
+function setupThinkingScroll(el){
+  if(!el || el.dataset.scrollReady==="1") return;
+  el.dataset.scrollReady="1";
+
+  // Start in "follow" mode. We only stop following after a real user scroll.
+  el._followBottom=true;
+  el._scrollProgrammatic=false;
+
+  el.addEventListener("scroll",()=>{
+    if(el._scrollProgrammatic) return;
+
+    const max=Math.max(0,el.scrollHeight-el.clientHeight);
+    const distance=max-el.scrollTop;
+
+    // User is considered at the bottom when within a small tolerance.
+    el._followBottom=distance <= 28;
+  },{passive:true});
+
+  // Wheel/touch/dragging the scrollbar should explicitly count as manual control.
+  const manual=()=>{
+    el._manualIntent=true;
+    requestAnimationFrame(()=>{
+      el._manualIntent=false;
+      const max=Math.max(0,el.scrollHeight-el.clientHeight);
+      el._followBottom=(max-el.scrollTop)<=28;
+    });
+  };
+  el.addEventListener("wheel",manual,{passive:true});
+  el.addEventListener("touchstart",manual,{passive:true});
+  el.addEventListener("pointerdown",manual,{passive:true});
+}
+
+function forceThinkingBottom(el){
+  if(!el) return;
+  setupThinkingScroll(el);
+
+  // Only auto-follow if the user has not intentionally moved away.
+  if(!el._followBottom) return;
+
+  const bottom=Math.max(0,el.scrollHeight-el.clientHeight);
+  el._scrollProgrammatic=true;
+  el.scrollTop=bottom;
+
+  // A second pass catches layout changes caused by Markdown/rendering.
+  requestAnimationFrame(()=>{
+    if(el._followBottom){
+      el.scrollTop=Math.max(0,el.scrollHeight-el.clientHeight);
+    }
+    el._scrollProgrammatic=false;
+  });
+}
+
+function updateThinkingScroll(el){
+  forceThinkingBottom(el);
+}
+
+function appendMessage(m,i){
+ const chat=$("chat");
+ const row=document.createElement("div");row.className="msg "+m.role;row.dataset.index=i;
+ const b=document.createElement("div");b.className="bubble";
+ if(m.role==="user"){
+   b.innerHTML=`<div class="md">${md(m.content)}</div>`;
+ }else{
+   if(m.thinking){
+     const d=document.createElement("details");d.className="thinking";d.open=state.busy;
+     d.innerHTML='<summary>🧠 Thinking <span class="mini">gerando…</span></summary><div class="thinkBody"></div>';
+     d.querySelector(".thinkBody").textContent=m.thinking;
+     b.appendChild(d);
+   }
+   const a=document.createElement("div");a.className="md";a.innerHTML=md(m.content);b.appendChild(a);
+ }
+ row.appendChild(b);chat.appendChild(row);
+ return row;
+}
+function updateAssistant(){
+ const idx=state.messages.length-1;
+ const row=$(`.msg[data-index="${idx}"]`);
+ if(!row){render();return}
+ const m=state.messages[idx],b=row.querySelector(".bubble");
+ if(m.thinking){
+   let d=b.querySelector(".thinking");
+   if(!d){
+     d=document.createElement("details");d.className="thinking";d.open=true;
+     d.innerHTML='<summary>🧠 Thinking <span class="mini">gerando…</span></summary><div class="thinkBody"></div>';
+     b.prepend(d);
+   }
+   d.querySelector(".thinkBody").textContent=m.thinking;
+   d.open=true;
+ }
+ let a=b.querySelector(".md");
+ if(!a){a=document.createElement("div");a.className="md";b.appendChild(a)}
+ a.innerHTML=md(m.content);
+ scroll();
+}
+async function connect(){
+ if(!state.url){setStatus("configure a URL");return false}
+ setStatus("conectando…");
+ try{const r=await fetch(api("/api/tags"));if(!r.ok)throw Error("HTTP "+r.status);const j=await r.json();state.installed=(j.models||[]).map(x=>x.name);setStatus("online · "+state.model);return true}
+ catch(e){setStatus("erro de conexão");return false}
+}
+async function send(){
+ if(state.busy)return;
+ const text=$("prompt").value.trim();if(!text)return;
+ if(!(await connect()))return;
+
+ $("prompt").value="";$("prompt").style.height="";
+ state.messages.push({role:"user",content:text});
+ state.messages.push({role:"assistant",content:"",thinking:""});
+ render();
+
+ state.busy=true;$("sendBtn").textContent="■";$("sendBtn").classList.add("stop");
+ state.controller=new AbortController();
+
+ try{
+  const payload={
+   model:state.model,
+   messages:state.messages.slice(0,-1),
+   stream:true,
+   options:{num_ctx:state.num_ctx,num_predict:state.num_predict}
+  };
+  if(state.think)payload.think=true;
+
+  const r=await fetch(api("/api/chat"),{
+   method:"POST",
+   headers:{"Content-Type":"application/json"},
+   body:JSON.stringify(payload),
+   signal:state.controller.signal
+  });
+  if(!r.ok)throw Error("HTTP "+r.status+" "+await r.text());
+
+  const reader=r.body.getReader(),dec=new TextDecoder();let buf="";
+  while(true){
+   const {value,done}=await reader.read();if(done)break;
+   buf+=dec.decode(value,{stream:true});
+   const lines=buf.split("\n");buf=lines.pop();
+   for(const line of lines){
+    if(!line.trim())continue;
+    try{
+     const x=JSON.parse(line),m=x.message||{},c=state.messages.at(-1);
+     if(m.thinking)c.thinking+=m.thinking;
+     if(m.content)c.content+=m.content;
+     updateAssistant();
+    }catch{}
+   }
+  }
+  if(buf.trim()){
+   try{
+    const x=JSON.parse(buf),m=x.message||{},c=state.messages.at(-1);
+    if(m.thinking)c.thinking+=m.thinking;
+    if(m.content)c.content+=m.content;
+   }catch{}
+  }
+  updateAssistant();
+ }catch(e){
+  if(e.name!=="AbortError"){
+   state.messages.at(-1).content="**Erro:** `"+e.message+"`";
+   updateAssistant();
+  }
+ }finally{
+  state.busy=false;state.controller=null;
+  document.querySelectorAll(".thinking").forEach(x=>x.open=false);
+  $("sendBtn").textContent="↑";$("sendBtn").classList.remove("stop");
+ }
+}
+function openSettings(){
+ $("sheetTitle").textContent="⚙️ Configurações";
+ $("sheetBody").innerHTML=`
+ <div class="field"><label>URL pública do Ollama</label><input id="urlInput" placeholder="https://xxxx.trycloudflare.com" value="${esc(state.url)}"></div>
+ <div class="field"><label>Modelo atual</label><input value="${esc(state.model)}" disabled></div>
+ <div class="field"><label>Contexto máximo (tokens)</label><input id="ctxInput" type="number" min="512" step="512" value="${state.num_ctx}"></div>
+ <div class="field"><label>Máximo de tokens gerados</label><input id="predictInput" type="number" min="1" step="256" value="${state.num_predict}"></div>
+ <div class="row"><button type="button" class="pill ${state.think?'on':''}" id="thinkToggle">🧠 Thinking: ${state.think?'ON':'OFF'}</button><button type="button" class="pill" id="testConn">🔌 Testar conexão</button></div>
+ <div class="status" id="connStatus">Contexto e limite de geração serão enviados em cada mensagem.</div>`;
+
+ $("urlInput").onchange=e=>{state.url=e.target.value.trim();save();connect()};
+ $("ctxInput").onchange=e=>{state.num_ctx=Math.max(512,parseInt(e.target.value||"32768",10));localStorage.setItem("vine_num_ctx",state.num_ctx)};
+ $("predictInput").onchange=e=>{state.num_predict=Math.max(1,parseInt(e.target.value||"4096",10));localStorage.setItem("vine_num_predict",state.num_predict)};
+ $("thinkToggle").onclick=()=>{state.think=!state.think;save();openSettings()};
+ $("testConn").onclick=async()=>{$("connStatus").textContent=(await connect())?"✅ Conectado":"❌ Falha ao conectar"};
+ $("drawer").classList.add("open");
+}
+const modelBusy=new Set();
+
+async function pullModel(name, card){
+  if(modelBusy.has(name)) return;
+  if(!state.url){openSettings();return}
+  modelBusy.add(name);
+  const bar=card?.querySelector(".progress>i");
+  const label=card?.querySelector(".pullStatus");
+  const buttons=card?.querySelectorAll("button")||[];
+  buttons.forEach(b=>b.disabled=true);
+  if(label) label.textContent="Baixando…";
+  try{
+    const r=await fetch(api("/api/pull"),{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({model:name,stream:true})
+    });
+    if(!r.ok) throw Error("HTTP "+r.status+" "+await r.text());
+
+    const reader=r.body.getReader();
+    const dec=new TextDecoder();
+    let buf="";
+    while(true){
+      const {value,done}=await reader.read();
+      if(done) break;
+      buf+=dec.decode(value,{stream:true});
+      const lines=buf.split("\n");
+      buf=lines.pop()||"";
+      for(const line of lines){
+        if(!line.trim()) continue;
+        try{
+          const x=JSON.parse(line);
+          if(x.total && x.completed){
+            const pct=Math.min(100,(x.completed/x.total)*100);
+            if(bar) bar.style.width=pct+"%";
+            if(label) label.textContent=`Baixando… ${pct.toFixed(1)}%`;
+          }else if(x.status && label){
+            label.textContent=x.status;
+          }
+        }catch{}
+      }
+    }
+    if(!state.installed.includes(name)) state.installed.push(name);
+    if(label) label.textContent="✅ Baixado";
+    drawModels();
+  }catch(e){
+    if(label) label.textContent="❌ "+(e?.message||"erro");
+    buttons.forEach(b=>b.disabled=false);
+  }finally{
+    modelBusy.delete(name);
+  }
+}
+
+async function modelMemory(name, keep){
+  if(modelBusy.has(name) || !state.url) return;
+  modelBusy.add(name);
+  try{
+    const r=await fetch(api("/api/generate"),{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        model:name,
+        prompt:"",
+        stream:false,
+        keep_alive:keep ? -1 : 0
+      })
+    });
+    if(!r.ok) throw Error("HTTP "+r.status+" "+await r.text());
+
+    if(keep){
+      if(!state.loaded.includes(name)) state.loaded.push(name);
+    }else{
+      state.loaded=state.loaded.filter(x=>x!==name);
+    }
+    drawModels();
+    setStatus(keep ? "modelo carregado · "+name : "modelo descarregado · "+name);
+  }catch(e){
+    setStatus("erro no modelo · "+(e?.message||"falha"));
+  }finally{
+    modelBusy.delete(name);
+  }
+}
+
+function openModels(){
+ $("sheetTitle").textContent="🤖 Biblioteca de modelos";
+ $("sheetBody").innerHTML=`
+ <input class="search" id="modelSearch" placeholder="Pesquisar modelo…">
+ <div class="row" id="filters">
+   <button type="button" class="pill on" data-f="all">Todos</button>
+   <button type="button" class="pill" data-f="thinking">Thinking</button>
+   <button type="button" class="pill" data-f="vision">Vision</button>
+   <button type="button" class="pill" data-f="coder">Coder</button>
+ </div>
+ <div id="modelList" class="models-grid"></div>`;
+
+ let filter="all";
+
+ window.drawModels=()=>{
+   const q=($("modelSearch")?.value||"").toLowerCase().trim();
+   const arr=catalog.filter(x=>
+     (filter==="all"||x[3].includes(filter)) &&
+     (x[0]+" "+x[4]).toLowerCase().includes(q)
+   );
+
+   $("modelList").innerHTML=arr.map(x=>{
+     const installed=state.installed.includes(x[0]);
+     const loaded=state.loaded.includes(x[0]);
+     const busy=modelBusy.has(x[0]);
+
+     return `<div class="card" data-card="${esc(x[0])}">
+       <div class="cardTop">
+         <div>
+           <h3>${esc(x[0])}</h3>
+           <p>${esc(x[4])} · ${esc(x[1])} · ${esc(x[2])} contexto</p>
+         </div>
+         <span>${loaded?'🧠':installed?'🟢':'⚪'}</span>
+       </div>
+       <div class="tags">${x[3].map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</div>
+       <div class="progress"><i style="width:0%"></i></div>
+       <div class="pullStatus mini">${
+         busy ? "Processando…" :
+         installed ? (loaded?"Carregado na memória":"Baixado") :
+         "Pronto para baixar"
+       }</div>
+       <div class="modelActions">
+         <button type="button" data-action="use" data-model="${esc(x[0])}" ${busy?'disabled':''}>
+           ${state.model===x[0]?'✓ Usando':'Usar'}
+         </button>
+         ${installed
+           ? `<button type="button" data-action="memory" data-model="${esc(x[0])}" data-keep="${loaded?'0':'1'}" ${busy?'disabled':''}>
+                ${loaded?'🧹 Descarregar':'⚡ Carregar'}
+              </button>`
+           : `<button type="button" data-action="pull" data-model="${esc(x[0])}" class="primary" ${busy?'disabled':''}>⬇️ Download</button>`
+         }
+       </div>
+     </div>`;
+   }).join("");
+ };
+
+ // One permanent click handler. Redrawing no longer creates dozens of handlers.
+ $("modelList").onclick=async e=>{
+   const b=e.target.closest("button[data-action]");
+   if(!b || b.disabled) return;
+   e.preventDefault();
+   e.stopPropagation();
+
+   const name=b.dataset.model;
+   const action=b.dataset.action;
+   if(!name || modelBusy.has(name)) return;
+
+   const card=b.closest(".card");
+   if(action==="use"){
+     state.model=name;
+     save();
+     $("modelBtn").textContent=state.model+" ▾";
+     drawModels();
+     setStatus("modelo · "+state.model);
+     return;
+   }
+
+   if(action==="pull"){
+     await pullModel(name,card);
+     return;
+   }
+
+   if(action==="memory"){
+     await modelMemory(name,b.dataset.keep==="1");
+   }
+ };
+
+ $("modelSearch").oninput=()=>drawModels();
+
+ $("filters").onclick=e=>{
+   const b=e.target.closest("button[data-f]");
+   if(!b) return;
+   filter=b.dataset.f;
+   $("filters").querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+   b.classList.add("on");
+   drawModels();
+ };
+
+ drawModels();
+ $("drawer").classList.add("open");
+ // Refresh installed list in the background without replacing the UI mid-click.
+ connect().then(()=>{ if($("drawer").classList.contains("open")) drawModels(); });
+}
+
+$("modelBtn").onclick=openModels;$("settingsBtn").onclick=openSettings;$("closeDrawer").onclick=()=>$("drawer").classList.remove("open");$("drawer").onclick=e=>{if(e.target===$("drawer"))$("drawer").classList.remove("open")};
+$("sendBtn").onclick=()=>state.busy?state.controller?.abort():send();$("prompt").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}});$("prompt").addEventListener("input",e=>{e.target.style.height="auto";e.target.style.height=Math.min(e.target.scrollHeight,180)+"px"});
+$("newBtn").onclick=()=>{state.messages=[];render();$("prompt").focus()};$("fsBtn").onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen?.();
+$("modelBtn").textContent=state.model+" ▾";render();if(state.url)connect();
+</script>
+</body>
+</html>
