@@ -23,7 +23,6 @@ jobs:
 
       - name: Start Ollama
         run: |
-          export OLLAMA_ORIGINS="*"
           ollama serve > /tmp/ollama.log 2>&1 &
           for i in {1..60}; do
             if curl -sf http://127.0.0.1:11434/api/tags >/dev/null; then
@@ -48,7 +47,11 @@ jobs:
 
       - name: Start Cloudflare Tunnel
         run: |
-          cloudflared tunnel --no-autoupdate --url http://127.0.0.1:11434 > /tmp/cloudflared.log 2>&1 &
+          cloudflared tunnel --no-autoupdate \
+            --url http://127.0.0.1:11434 \
+            --http-host-header localhost:11434 \
+            > /tmp/cloudflared.log 2>&1 &
+
           for i in {1..60}; do
             URL=$(grep -oE 'https://[-a-zA-Z0-9]+\.trycloudflare\.com' /tmp/cloudflared.log | head -n1 || true)
             if [ -n "$URL" ]; then
@@ -60,6 +63,7 @@ jobs:
             fi
             sleep 1
           done
+
           if [ -z "$URL" ]; then
             cat /tmp/cloudflared.log
             exit 1
