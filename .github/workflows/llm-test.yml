@@ -51,7 +51,7 @@ jobs:
           for i in {1..60}; do
             URL=$(grep -oE 'https://[-a-zA-Z0-9]+\.trycloudflare\.com' /tmp/cloudflared.log | head -n1 || true)
             if [ -n "$URL" ]; then
-              echo "OLLAMA_URL=$URL" >> "$GITHUB_ENV"
+                echo "OLLAMA_URL=$URL" >> "$GITHUB_ENV"
               echo "======================================"
               echo "OLLAMA PUBLIC URL: $URL"
               echo "======================================"
@@ -59,7 +59,7 @@ jobs:
             fi
             sleep 1
           done
-          if [ -z "${OLLAMA_URL:-}" ]; then
+          if [ -z "$URL" ]; then
             cat /tmp/cloudflared.log
             exit 1
           fi
