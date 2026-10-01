@@ -1,0 +1,32 @@
+name: LLM benchmark
+
+on:
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show runner
+        run: |
+          echo "CPU: $(nproc)"
+          free -h
+          df -h /
+          uname -a
+      - name: Install Ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+      - name: Start Ollama
+        run: |
+          ollama serve > /tmp/ollama.log 2>&1 &
+          for i in {1..30}; do curl -sf http://127.0.0.1:11434/api/tags >/dev/null && break; sleep 1; done
+      - name: Run LLM test
+        run: |
+          ollama pull llama3.2:1b
+          /usr/bin/time -v ollama run llama3.2:1b "Explique em português, de forma curta, como funciona uma máquina virtual." 2>&1 | tee benchmark.txt
+      - name: Upload result
+        uses: actions/upload-artifact@v4
+        with:
+          name: llm-benchmark
+          path: benchmark.txt
