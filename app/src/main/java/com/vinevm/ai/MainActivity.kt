@@ -117,7 +117,6 @@ class MainActivity:ComponentActivity(){
  }
  }
 }
-}
 
 @Composable private fun fieldColors()=OutlinedTextFieldDefaults.colors(focusedTextColor=Color.White,unfocusedTextColor=Color.White,focusedBorderColor=Accent,unfocusedBorderColor=Color(0xFF343847))
 @Composable private fun ModelRow(name:String,sub:String,action:String,enabled:Boolean,onClick:()->Unit){Row(Modifier.fillMaxWidth().background(Panel,RoundedCornerShape(12.dp)).padding(12.dp),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text(name,color=Color.White,fontSize=13.sp,fontWeight=FontWeight.SemiBold);Text(sub,color=Muted,fontSize=10.sp)};TextButton(onClick=onClick,enabled=enabled){Text(action,color=Accent,fontSize=10.sp)}}}
