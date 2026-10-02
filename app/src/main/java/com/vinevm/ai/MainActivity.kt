@@ -58,8 +58,8 @@ class MainActivity:ComponentActivity(){
  var url by remember{mutableStateOf(initialUrl)}; var model by remember{mutableStateOf(initialModel)}; var modelId by remember{mutableStateOf(initialModel)}
  var draft by remember{mutableStateOf("")}; var thinking by remember{mutableStateOf(true)}
  var engine by remember{mutableStateOf(initialUrl.isBlank())}; var modelsScreen by remember{mutableStateOf(false)}; var savedScreen by remember{mutableStateOf(false)}
- var tab by remember{mutableIntStateOf(0)}; var busy by remember{mutableStateOf(false)}; var downloading by remember{mutableStateOf(false)}
- var progress by remember{mutableFloatStateOf(0f)}; var downloadInfo by remember{mutableStateOf("")}; var status by remember{mutableStateOf("")}
+ var tab by remember{mutableStateOf(0)}; var busy by remember{mutableStateOf(false)}; var downloading by remember{mutableStateOf(false)}
+ var progress by remember{mutableStateOf(0f)}; var downloadInfo by remember{mutableStateOf("")}; var status by remember{mutableStateOf("")}
  var installed by remember{mutableStateOf<List<String>>(emptyList())}; var running by remember{mutableStateOf<List<ModelInfo>>(emptyList())}; var menu by remember{mutableStateOf(false)}
  val messages=remember{mutableStateListOf<ChatMessage>()}; var saved by remember{mutableStateOf(parseChats(savedRaw))}; var active by remember{mutableStateOf("")}
  val scope=rememberCoroutineScope()
@@ -76,11 +76,11 @@ class MainActivity:ComponentActivity(){
  Box(Modifier.size(38.dp).background(Accent,CircleShape),contentAlignment=Alignment.Center){Text("V",color=Bg,fontWeight=FontWeight.Black,fontSize=22.sp)}
  Spacer(Modifier.width(10.dp));Column(Modifier.weight(1f)){Text("VineVM",color=Color.White,fontSize=21.sp,fontWeight=FontWeight.Bold);Text(if(engine)"ENGINE" else if(modelsScreen)"MODELS" else model,color=Muted,fontSize=10.sp)}
  Box{IconButton(onClick={menu=true}){Text("⋮",color=Color.White,fontSize=24.sp)};DropdownMenu(expanded=menu,onDismissRequest={menu=false}){
- DropdownMenuItem(text={Text("Nova conversa")},onClick={ {messages.clear();active="";menu=false} })
- DropdownMenuItem(text={Text("Salvar conversa")},onClick={ {menu=false;saveChat()} })
- DropdownMenuItem(text={Text("Conversas salvas")},onClick={ {menu=false;savedScreen=true;engine=false;modelsScreen=false} })
- DropdownMenuItem(text={Text("Engine")},onClick={ {menu=false;engine=true;modelsScreen=false;savedScreen=false} })
- DropdownMenuItem(text={Text("Models")},onClick={ {menu=false;engine=false;modelsScreen=true;savedScreen=false;refresh()} })
+ DropdownMenuItem(text={Text("Nova conversa")},onClick={messages.clear();active="";menu=false})
+ DropdownMenuItem(text={Text("Salvar conversa")},onClick={menu=false;saveChat()})
+ DropdownMenuItem(text={Text("Conversas salvas")},onClick={menu=false;savedScreen=true;engine=false;modelsScreen=false})
+ DropdownMenuItem(text={Text("Engine")},onClick={menu=false;engine=true;modelsScreen=false;savedScreen=false})
+ DropdownMenuItem(text={Text("Models")},onClick={menu=false;engine=false;modelsScreen=true;savedScreen=false;refresh()})
  }}
  }
  when{
@@ -134,4 +134,4 @@ private fun pullModel(base:String,name:String,cb:(Float,String)->Unit){val p=JSO
 private fun streamChat(base:String,model:String,msgs:List<ChatMessage>,think:Boolean,cb:(String,String)->Unit){val a=JSONArray();msgs.forEach{m->val o=JSONObject().put("role",m.role).put("content",m.content);if(m.role=="assistant"&&m.thinking.isNotBlank())o.put("thinking",m.thinking);a.put(o)};val p=JSONObject().put("model",model).put("messages",a).put("stream",true).put("think",think);val q=Request.Builder().url(endpoint(base,"api/chat")).post(p.toString().toRequestBody("application/json; charset=utf-8".toMediaType())).build();http().newCall(q).execute().use{res->if(!res.isSuccessful)throw IllegalStateException("HTTP "+res.code+": "+res.body?.string()?.take(400));val src=res.body?.source()?:throw IllegalStateException("Sem resposta");while(!src.exhausted()){val line=src.readUtf8Line()?:break;if(line.isBlank())continue;val o=JSONObject(line);if(o.has("error"))throw IllegalStateException(o.optString("error"));val m=o.optJSONObject("message")?:continue;cb(if(think)m.optString("thinking").takeUnless{it=="null"}.orEmpty()else"",m.optString("content").takeUnless{it=="null"}.orEmpty())}}}
 private fun bytes(n:Long):String{if(n<1024)return "$n B";val u=listOf("KB","MB","GB","TB");var v=n.toDouble();var i=-1;do{v/=1024;i++}while(v>=1024&&i<u.lastIndex);return String.format(java.util.Locale.US,"%.1f %s",v,u[i])}
 private fun encodeChats(chats:List<SavedChat>):String{val a=JSONArray();chats.forEach{c->val m=JSONArray();c.messages.forEach{x->m.put(JSONObject().put("id",x.id).put("role",x.role).put("content",x.content).put("thinking",x.thinking))};a.put(JSONObject().put("id",c.id).put("title",c.title).put("messages",m))};return a.toString()}
-private fun parseChats(raw:String):List<SavedChat>=try{val a=JSONArray(raw);(0 until a.length()).map{i->val c=a.getJSONObject(i);val ma=c.getJSONArray("messages");val ms=(0 until ma.length()).map{j->val m=ma.getJSONObject(j);ChatMessage(m.optLong("id"),m.optString("role"),m.optString("content"),m.optString("thinking"))};SavedChat(c.optString("id"),c.optString("title"),ms)}}catch(_:Exception){emptyList()}
+private fun parseChats(raw:String): List<SavedChat> =try{val a=JSONArray(raw);(0 until a.length()).map{i->val c=a.getJSONObject(i);val ma=c.getJSONArray("messages");val ms=(0 until ma.length()).map{j->val m=ma.getJSONObject(j);ChatMessage(m.optLong("id"),m.optString("role"),m.optString("content"),m.optString("thinking"))};SavedChat(c.optString("id"),c.optString("title"),ms)}}catch(_:Exception){emptyList()}
